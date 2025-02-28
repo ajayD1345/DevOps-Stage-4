@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.10
+    restart: always
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=hamedayojide58@gmail.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik-certificates:/letsencrypt"
+    networks:
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    labels:
+      - "traefik.http.routers.frontend.rule=Host(`foxcastor.com.ng`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+    depends_on:
+      - auth-api
+    networks:
+      - backend
+
+  auth-api:
+    build:
+      context: ./auth-api
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    labels:
+      - "traefik.http.routers.auth.rule=Host(`foxcastor.com.ng/api/auth`)"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls.certresolver=myresolver"
+    networks:
+      - backend
+
+  todos-api:
+    build:
+      context: ./todos-api
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    labels:
+      - "traefik.http.routers.todos.rule=Host(`foxcastor.com.ng/api/todos`)"
+      - "traefik.http.routers.todos.entrypoints=websecure"
+      - "traefik.http.routers.todos.tls.certresolver=myresolver"
+    networks:
+      - backend
+
+  users-api:
+    build:
+      context: ./users-api
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    labels:
+      - "traefik.http.routers.users.rule=Host(`foxcastor.com.ng/api/users`)"
+      - "traefik.http.routers.users.entrypoints=websecure"
+      - "traefik.http.routers.users.tls.certresolver=myresolver"
+    networks:
+      - backend
+
+  log-message-processor:
+    build:
+      context: ./log-message-processor
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    networks:
+      - backend
+
+  redis:
+    image: redis:alpine
+    restart: always
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  traefik-certificates:
