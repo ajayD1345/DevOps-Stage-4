@@ -13,11 +13,12 @@ services:
       - "--certificatesresolvers.myresolver.acme.email=hamedayojide58@gmail.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
-      - "8080:80"
+      - "80:80"
       - "443:443"
+      - "8080:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "traefik-certificates:/letsencrypt"
+      - "./letsencrypt:/letsencrypt"
     networks:
       - backend
 
@@ -41,7 +42,7 @@ services:
     env_file:
       - .env
     labels:
-      - "traefik.http.routers.auth.rule=Host(`foxcastor.com.ng/api/auth`)"
+      - "traefik.http.routers.auth.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls.certresolver=myresolver"
     networks:
@@ -54,7 +55,7 @@ services:
     env_file:
       - .env
     labels:
-      - "traefik.http.routers.todos.rule=Host(`foxcastor.com.ng/api/todos`)"
+      - "traefik.http.routers.todos.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos.entrypoints=websecure"
       - "traefik.http.routers.todos.tls.certresolver=myresolver"
     networks:
@@ -67,7 +68,7 @@ services:
     env_file:
       - .env
     labels:
-      - "traefik.http.routers.users.rule=Host(`foxcastor.com.ng/api/users`)"
+      - "traefik.http.routers.users.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users.entrypoints=websecure"
       - "traefik.http.routers.users.tls.certresolver=myresolver"
     networks:
