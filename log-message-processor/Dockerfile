@@ -1,17 +1,25 @@
 # Use an official lightweight Python image
-FROM python:3.10-slim
+FROM python:2.7-slim
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirement files
+# Install system dependencies and upgrade pip
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc python3-dev libffi-dev \
+    && rm -rf /var/lib/apt/lists/* 
+
+# Copy and install dependencies
 COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-# Copy rest of the files
+# Copy the rest of the application files
 COPY . .
+
+# Create a non-root user and switch to it
+RUN addgroup --system appgroup && adduser --system --group appuser \
+    && chown -R appuser:appgroup /app
+USER appuser
 
 # Expose port 8000
 EXPOSE 8000

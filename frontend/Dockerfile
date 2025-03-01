@@ -1,10 +1,14 @@
 # Stage 1: build the vue.js application
-FROM node:16-alpine AS build-stage
+FROM node:14-alpine3.14 AS build-stage
 WORKDIR /app
+
+# Install required build tools for node-sass
+#RUN apk add --no-cache python2 make g++ && \
+#    ln -sf python2 /usr/bin/python
 
 # Install the application dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copy in the source code
 COPY . .

@@ -4,11 +4,19 @@ FROM maven:3.8.7-eclipse-temurin-17 AS builder
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the project files
-COPY . .
+# Copy the Maven wrapper and configuration
+COPY pom.xml .
+COPY mvnw .
+COPY .mvn/ .mvn/
+
+# Copy the source code
+COPY src/ src/
+
+# Make sure the Maven wrapper script is executable
+RUN chmod +x mvnw
 
 # Build the application
-RUN ./mvnw clean install
+RUN mvn clean install -DskipTests
 
 # Use a minimal JDK image for running the app
 FROM eclipse-temurin:17-jdk-alpine

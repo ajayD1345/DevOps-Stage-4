@@ -1,5 +1,5 @@
 # Stage 1: build the auth-api application
-FROM golang:1.21-alphine AS builder
+FROM golang:1.21-alpine AS builder
 WORKDIR /app
 
 # Install the dependencies first for caching
@@ -17,7 +17,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy the auth-api binary from the building stage
-COPY --from=build-builder /app/auth-api .
+COPY --from=builder /app/auth-api .
 
 # Expose the port that the service listens on
 EXPOSE 8081
