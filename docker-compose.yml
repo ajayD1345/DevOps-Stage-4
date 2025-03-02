@@ -5,11 +5,21 @@ services:
     image: traefik:v2.10
     restart: always
     command:
+          # provider
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      # metrics
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.buckets=0.1,0.3,1.2,5.0"
+      - "--log.level=ERROR"
+      # logs
+      - "--accesslog=true"
       - "--api.insecure=true"
       - "--providers.docker=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
       - "--certificatesresolvers.myresolver.acme.email=hamedayojide58@gmail.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
@@ -19,21 +29,30 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./letsencrypt:/acme.json"
-    networks:
-      - backend
+   
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     labels:
-      - "traefik.http.routers.frontend.rule=Host(`foxcastor.com.ng`)"
+      - "traefik.enable=true"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
+      - "traefik.http.routers.frontend-http.entrypoints=web"
+      - "traefik.http.routers.frontend-http.service=frontend"
+      - "traefik.http.routers.frontend-http.rule=Host(`foxcastor.com.ng`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+      - "traefik.http.routers.frontend-https.tls=true"
+      - "traefik.http.routers.frontend-https.service=frontend"
+      - "traefik.http.routers.frontend-https.rule=Host(`foxcastor.com.ng`)"
+      - "traefik.http.routers.frontend-http.middlewares=redirect-https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.permanent=true" 
     depends_on:
       - auth-api
-    networks:
-      - backend
+      - todos-api
+    
 
   auth-api:
     build:
@@ -41,12 +60,20 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    depends_on:
+      - users-api
     labels:
-      - "traefik.http.routers.auth.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/auth`)"
+      - "traefik.enable=true"
+      - "traefik.http.routers.auth-https.tls=true"
+      - "traefik.http.routers.auth-http.entrypoints=web" 
+      - "traefik.http.routers.auth-http.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/auth`)"
       - "traefik.http.routers.auth.entrypoints=websecure"
       - "traefik.http.routers.auth.tls.certresolver=myresolver"
-    networks:
-      - backend
+      - "traefik.http.routers.auth-https.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/auth`)" 
+      - "traefik.http.routers.auth-http.middlewares=redirect-https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.permanent=true" 
+   
 
   todos-api:
     build:
@@ -54,12 +81,20 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    depends_on:
+      - redis-queue  
     labels:
-      - "traefik.http.routers.todos.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/todos`)"
+      - "traefik.enable=true"
+      - "traefik.http.routers.todos-https.tls=true"
+      - "traefik.http.routers.todos-http.entrypoints=web"  
+      - "traefik.http.routers.todos-http.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/todos`)"
       - "traefik.http.routers.todos.entrypoints=websecure"
       - "traefik.http.routers.todos.tls.certresolver=myresolver"
-    networks:
-      - backend
+      - "traefik.http.routers.todos-https.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/todos`)" 
+      - "traefik.http.routers.todos-http.middlewares=redirect-https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.permanent=true"  
+   
 
   users-api:
     build:
@@ -68,11 +103,17 @@ services:
     env_file:
       - .env
     labels:
-      - "traefik.http.routers.users.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/users`)"
+      - "traefik.enable=true"
+      - "traefik.http.routers.users-http.entrypoints=web"  
+      - "traefik.http.routers.users-http.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/users`)"
       - "traefik.http.routers.users.entrypoints=websecure"
       - "traefik.http.routers.users.tls.certresolver=myresolver"
-    networks:
-      - backend
+      - "traefik.http.routers.users-https.tls=true" 
+      - "traefik.http.routers.users-https.rule=Host(`foxcastor.com.ng`) && PathPrefix(`/api/users`)" 
+      - "traefik.http.routers.users-http.middlewares=redirect-https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.scheme=https"
+      - "traefik.http.middlewares.redirect-https.redirectScheme.permanent=true" 
+    
 
   log-message-processor:
     build:
@@ -81,19 +122,18 @@ services:
     env_file:
       - .env
     depends_on:
-      - redis
-    networks:
-      - backend
+      - redis-queue
+    
 
-  redis:
+  redis-queue:
     image: redis:alpine
+    ports:
+      - "6379:6379"
     restart: always
-    networks:
-      - backend
-
-networks:
-  backend:
-    driver: bridge
+    volumes:
+      - redis_data:/data
+    
 
 volumes:
   traefik-certificates:
+  redis_data:
